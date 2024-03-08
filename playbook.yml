@@ -1,0 +1,43 @@
+---
+- name: Dra ner image, starta postgres databas mha docker volume, kör imagen
+  hosts: localhost
+
+  tasks:
+    - name: Ensure Docker is installed
+      apt:
+        name: docker.io
+        state: present
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Check if PostgreSQL container exists
+      shell: "docker ps --format=json --filter 'name=postgres' | wc -l"
+      register: docker_ps_output
+
+    - name: Run PostgreSQL Docker container if not found
+      command: "docker run --rm -e POSTGRES_PASSWORD=pass -e POSTGRES_USER=awesome -e POSTGRES_DB=iss-db -p 5432:5432 -v pgdata:/var/lib/postgresql/data --name postgres -d postgres"
+      when: docker_ps_output.stdout == "0"
+      register: docker_run_output
+      ignore_errors: yes # Ignore errors if the container already exists
+
+    - name: Stop current ISS container
+      command: "docker stop ISS"
+      ignore_errors: yes # Ignore errors if the container is not running
+
+    - name: Remove current ISS container
+      command: "docker rm ISS"
+      ignore_errors: yes # Ignore errors if the container doesn't exist
+
+    - name: Pull Docker image
+      shell: "docker pull bugzapper/iss-app-cicd:latest"
+
+    - name: Run appens Docker Image som nyss laddades ner
+      shell: "docker run -p 3000:3000 -e PG_HOST={{ ansible_default_ipv4.address }} --name ISS -d bugzapper/iss-app-cicd:latest"
+
+# Alltid kul med Hello World!
+- name: Hello World Playbook
+  hosts: localhost
+  tasks:
+    - name: Print Hello World
+      debug:
+        msg: "Hello, World!"
+
